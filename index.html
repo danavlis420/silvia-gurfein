@@ -1,3 +1,5 @@
+//INDEX 
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -25,11 +27,19 @@
     </div>
     <div id="info-controles">
       R → Reset<br>
-      Espacio → Pausa
+      Espacio → Pausa<br> <br>
+      Presioná <b>1</b>, <b>2</b>, <b>3</b> o <b>4</b> para cambiar<br> 
+      la paleta de colores<br>
       <br><br>
       <button id="btn-save" title="Guardar imagen">
         💾
       </button>
+      <br><br>
     </div>
+    <div id="sensibilidad-mic" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,0.9); padding:10px 20px; border-radius:10px; box-shadow:0 2px 8px #0002; z-index:100;">
+  <label for="umbral-slider">Sensibilidad micrófono:</label>
+  <input type="range" id="umbral-slider" min="0" max="100" step="1" value="2">
+  <span id="umbral-value">2</span>
+</div>
   </body>
 </html>

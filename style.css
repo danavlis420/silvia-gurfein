@@ -58,3 +58,16 @@ canvas {
 #btn-save:hover {
   background: #444;
 }
+
+#sensibilidad-mic {
+  background: #191919 !important;
+  color: #fff;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px #0002;
+  z-index: 100;
+}

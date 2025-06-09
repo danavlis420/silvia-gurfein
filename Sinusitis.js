@@ -57,6 +57,25 @@ class Sinusitis {
     this.movimientoBaseY = this.centroY + 30 * sin(this.x * 0.02 + this.eje + cos(this.x * 0.015 + this.ejeVariante));
   }
 
+  // Actualiza el largo del bastón según la amplitud del sonido
+  fijarLargoPorAmplitud(amplitud) {
+    // Compresión suave y mayor rango
+    let comp = sqrt(constrain(amplitud, 0, 0.2) / 0.2);
+    let factorAmp = map(comp, 0, 1, 0.4, 1, true); // antes 0.2, ahora 0.4 para mínimo más grande
+    this.largo = map(this.y, -1, 1, 300, largoMaximoBaston) * factorAmp;
+
+    let yTop = this.centroY - this.largo / 2;
+    let yBottom = this.centroY + this.largo / 2;
+    if (yTop < 0) {
+      this.largo -= (0 - yTop);
+      this.centroY = this.largo / 2;
+    }
+    if (yBottom > height) {
+      this.largo -= (yBottom - height);
+      this.centroY = height - this.largo / 2;
+    }
+  }
+
   // Dibuja el bastón en pantalla
   dibujar(posicion, movimientoYExtra = 0, nuevaTransparencia = null, nuevoColor = null) {
     rectMode(CENTER);
