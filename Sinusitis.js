@@ -12,7 +12,8 @@ class Sinusitis {
     this.frecuenciaOriginal = this.frecuencia;
 
     this.y = sin(this.x * this.frecuencia + eje + sin(this.x * 0.01 + this.ejeVariante));
-    this.largo = map(this.y, -1, 1, 200, largoMaximoBaston);
+    this.largoBase = map(this.y, -1, 1, 200, largoMaximoBaston); // <--- largo base por sinusoide
+    this.largo = this.largoBase;
 
     let yTop = this.centroY - this.largo / 2;
     let yBottom = this.centroY + this.largo / 2;
@@ -41,7 +42,8 @@ class Sinusitis {
   actualizarFrecuencia(frec) {
     this.frecuencia = frec;
     this.y = sin(this.x * this.frecuencia + this.eje + sin(this.x * 0.01 + this.ejeVariante));
-    this.largo = map(this.y, -1, 1, 200, largoMaximoBaston);
+    this.largoBase = map(this.y, -1, 1, 200, largoMaximoBaston); // <--- largo base por sinusoide
+    this.largo = this.largoBase;
 
     let yTop = this.centroY - this.largo / 2;
     let yBottom = this.centroY + this.largo / 2;
@@ -57,13 +59,34 @@ class Sinusitis {
     this.movimientoBaseY = this.centroY + 30 * sin(this.x * 0.02 + this.eje + cos(this.x * 0.015 + this.ejeVariante));
   }
 
-  // Actualiza el largo del bastón según la amplitud del sonido
-  fijarLargoPorAmplitud(amplitud) {
-    // Compresión suave y mayor rango
-    let comp = sqrt(constrain(amplitud, 0, 0.2) / 0.2);
-    let factorAmp = map(comp, 0, 1, 0.4, 1, true); // antes 0.2, ahora 0.4 para mínimo más grande
-    this.largo = map(this.y, -1, 1, 300, largoMaximoBaston) * factorAmp;
+  // Nuevo método para truncar el largo según el volumen
+  truncarLargoPorVolumen(amplitud) {
+    const largoMinimo = 40;
+    const largoMaximo = largoMaximoBaston;
 
+    let minVol = typeof window.umbralVolumen !== "undefined" ? window.umbralVolumen : 0.003;
+    let maxVol = typeof window.volumenMaximo !== "undefined" ? window.volumenMaximo : 0.08;
+
+    // Si el volumen está por debajo del mínimo, el bastón es transparente y de largo mínimo
+    if (amplitud <= minVol) {
+      this.largo = largoMinimo;
+      this.esTransparente = true;
+      return;
+    } else {
+      this.esTransparente = false;
+    }
+
+    // Mapeo robusto: si minVol == maxVol, evitar división por cero
+    let factor;
+    if (maxVol > minVol) {
+      factor = (amplitud - minVol) / (maxVol - minVol);
+    } else {
+      factor = 1; // Si el rango es inválido, usar largo máximo
+    }
+    factor = constrain(factor, 0, 1);
+    this.largo = lerp(largoMinimo, largoMaximo, factor);
+
+    // Ajuste para no salir del canvas
     let yTop = this.centroY - this.largo / 2;
     let yBottom = this.centroY + this.largo / 2;
     if (yTop < 0) {
@@ -81,6 +104,10 @@ class Sinusitis {
     rectMode(CENTER);
     noStroke();
 
+    // Oscilación vertical lenta de hasta 4px
+    let t = millis() * 0.0003 + this.x * 0.05; // velocidad y desfase por bastón
+    let oscilacion = sin(t) * 2; // entre -2 y +2 px
+
     let colorUsado = nuevoColor || this.color;
     let alfa = nuevaTransparencia !== null ? nuevaTransparencia : alpha(colorUsado);
 
@@ -92,11 +119,12 @@ class Sinusitis {
     );
 
     fill(c);
+    let largoDibujar = typeof this.largoFijado !== "undefined" ? this.largoFijado : this.largo;
     rect(
       posicion,
-      this.movimientoBaseY + movimientoYExtra,
+      this.movimientoBaseY + movimientoYExtra + oscilacion,
       this.ancho,
-      this.largo,
+      largoDibujar,
       this.esquinasRedondeadas
     );
 
@@ -109,9 +137,9 @@ class Sinusitis {
           : color(hue(c), saturation(c) * 0.9, min(100, brilloBase * 1.2), alfa);
 
         stroke(hiloColor);
-        let yCentro = this.movimientoBaseY + movimientoYExtra;
-        let y1 = yCentro - this.largo / 2;
-        let y2 = yCentro + this.largo / 2;
+        let yCentro = this.movimientoBaseY + movimientoYExtra + oscilacion;
+        let y1 = yCentro - largoDibujar / 2;
+        let y2 = yCentro + largoDibujar / 2;
         line(posicion + hilo.offsetX, y1, posicion + hilo.offsetX, y2);
       }
       noStroke();

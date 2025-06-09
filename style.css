@@ -64,8 +64,9 @@ canvas {
   color: #fff;
   position: fixed;
   bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
+  left: unset;
+  transform: none;
   padding: 10px 20px;
   border-radius: 10px;
   box-shadow: 0 2px 8px #0002;

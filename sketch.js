@@ -27,20 +27,29 @@ let rangoMovimientoY = 5;
 let factorFrecuenciaMouse = 0.03;
 let factorDesplazamientoAcumulado = 0.8;
 let pausado = false;
-let umbralVolumen = 0.008; // Valor inicial (corresponde a 10 en el slider)
+let umbralVolumen = 0.003; // Más sensible al micrófono
 let dibujandoPorSonido = false;
 let volumenActual = 0;
 let rangoCentroY = 40;
 let sensibilidadFrecuencia = 0.8;
 let fft;
+let volumenMaximo = 0.08; // Ajustá este valor según tu micro
+let volumenSuavizado = 0; // Volumen suavizado para bastones nuevos
 
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
-  createCanvas(800, 600);
+  let canvas = createCanvas(800, 600); // <-- guardá el canvas en una variable
   frameRate(24);
   colorMode(HSB, 360, 100, 100, 100);
   noStroke();
   largoMaximoBaston = height * 0.8;
+
+  // Iniciar audio tras interacción del usuario
+  getAudioContext().suspend();
+  canvas.elt.addEventListener('mousedown', () => { // <-- usá canvas.elt
+    userStartAudio();
+    getAudioContext().resume();
+  });
 
   mic = new p5.AudioIn();
   mic.start();
@@ -89,6 +98,8 @@ function draw() {
 
   // Actualiza el volumen del micrófono
   volumenActual = mic.getLevel();
+  // Suaviza el volumen para el próximo bastón
+  volumenSuavizado = lerp(volumenSuavizado, volumenActual, 0.15);
 
   // Controla si se debe dibujar por sonido
   dibujandoPorSonido = volumenActual >= umbralVolumen;
@@ -101,12 +112,22 @@ function draw() {
     if (i === capas.length - 1 && capa.contadorBastones < cantidadBastones) {
       let desde = Math.floor(capa.contadorBastones);
       let hasta = Math.min(Math.floor(capa.contadorBastones + velocidad), cantidadBastones);
+
+      // Variable para suavizar el volumen entre bastones
+      if (typeof capa.ultimoVolumenBaston === "undefined") capa.ultimoVolumenBaston = volumenSuavizado;
+
       for (let idx = desde; idx < hasta; idx++) {
         if (idx < capa.bastones.length && capa.alphas[idx] === null) {
           let alphaBase = (volumenActual < umbralVolumen) ? 0 : (capa.bastones[idx].esTransparente ? 0 : capa.alpha);
+
+          let baston = capa.bastones[idx];
+          if (baston && typeof baston.largoFijado === "undefined") {
+            // Suavizá el volumen entre el último y el actual
+            capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenSuavizado, 0.25);
+            baston.truncarLargoPorVolumen(capa.ultimoVolumenBaston);
+            baston.largoFijado = baston.largo;
+          }
           capa.alphas[idx] = alphaBase;
-          // Fijar el largo del bastón según la amplitud en el momento de aparición
-          capa.bastones[idx].fijarLargoPorAmplitud(volumenActual);
         }
       }
       capa.contadorBastones += velocidad;
@@ -142,6 +163,7 @@ function draw() {
     // Dibuja los bastones de la capa y actualiza su largo según la amplitud
     for (let j = 0; j < capa.contadorBastones && j < capa.bastones.length; j++) {
       let baston = capa.bastones[j];
+
       let posicionX = capa.direccion === 1 ? j * anchoBaston : width - j * anchoBaston;
       let movimientoYExtra = 0;
       let alphaBase = capa.alphas[j] !== null ? capa.alphas[j] : 0;
@@ -160,6 +182,20 @@ function draw() {
       direccionCapa *= -1;
       crearNuevaCapa();
     }
+  }
+
+  // --- Actualiza el medidor de micrófono fuera del canvas ---
+  let bar = document.getElementById('mic-bar');
+  let barBg = document.getElementById('mic-bar-bg');
+  let minDiv = document.getElementById('mic-min');
+  let valueSpan = document.getElementById('mic-value');
+  if (bar && barBg && minDiv && valueSpan) {
+    let h = barBg.offsetHeight;
+    let minY = h - Math.round(map(umbralVolumen, 0, volumenMaximo, 0, h, true));
+    let valY = h - Math.round(map(volumenActual, 0, volumenMaximo, 0, h, true));
+    bar.style.height = (h - valY) + "px";
+    minDiv.style.bottom = minY + "px";
+    valueSpan.textContent = volumenActual.toFixed(4);
   }
 }
 
@@ -244,7 +280,12 @@ function crearNuevaCapa() {
     let col = coloresHSB[idxColor];
     let esTransparente = indicesTransparentes.includes(i);
     let esquinasRedondeadas = indicesRedondeados.includes(i) ? int(random(1, 4)) : 0;
-    nueva.bastones.push(new Sinusitis(i, eje, ejeVariante, anchoBaston, col, esTransparente, centroY, frecuenciaLargoBase, esquinasRedondeadas));
+    let baston = new Sinusitis(
+      i, eje, ejeVariante, anchoBaston, col, esTransparente, centroY, frecuenciaLargoBase, esquinasRedondeadas
+    );
+    // Usar volumen suavizado para el largo
+    baston.truncarLargoPorVolumen(volumenSuavizado);
+    nueva.bastones.push(baston);
     nueva.colores.push(col);
     nueva.alphas.push(null);
   }
@@ -335,11 +376,45 @@ window.addEventListener('DOMContentLoaded', () => {
   const valueLabel = document.getElementById('umbral-value');
   if (slider && valueLabel) {
     slider.addEventListener('input', () => {
-      umbralVolumen = parseFloat(slider.value) * 0.0008;
+      umbralVolumen = parseFloat(slider.value) * 0.0003; // Antes 0.0008, ahora más sensible
       valueLabel.textContent = slider.value;
     });
     slider.value = 2;
     valueLabel.textContent = slider.value;
-    umbralVolumen = parseFloat(slider.value) * 0.0008;
+    umbralVolumen = parseFloat(slider.value) * 0.0003; // Ajuste inicial más sensible
+  }
+
+  // NUEVO: sliders de sensibilidad min y max
+  const minSlider = document.getElementById('umbral-min-slider');
+  const maxSlider = document.getElementById('umbral-max-slider');
+  const minValue = document.getElementById('umbral-min-value');
+  const maxValue = document.getElementById('umbral-max-value');
+
+  if (minSlider && minValue && maxSlider && maxValue) {
+    minSlider.addEventListener('input', () => {
+      umbralVolumen = parseFloat(minSlider.value);
+      minValue.textContent = minSlider.value;
+      // Evita que el mínimo supere al máximo
+      if (umbralVolumen >= volumenMaximo) {
+        volumenMaximo = umbralVolumen + 0.001;
+        maxSlider.value = volumenMaximo;
+        maxValue.textContent = volumenMaximo.toFixed(3);
+      }
+    });
+    maxSlider.addEventListener('input', () => {
+      volumenMaximo = parseFloat(maxSlider.value);
+      maxValue.textContent = maxSlider.value;
+      // Evita que el máximo sea menor al mínimo
+      if (volumenMaximo <= umbralVolumen) {
+        umbralVolumen = volumenMaximo - 0.001;
+        minSlider.value = umbralVolumen;
+        minValue.textContent = umbralVolumen.toFixed(3);
+      }
+    });
+    // Inicializa valores
+    minSlider.value = umbralVolumen;
+    minValue.textContent = umbralVolumen;
+    maxSlider.value = volumenMaximo;
+    maxValue.textContent = volumenMaximo;
   }
 });
