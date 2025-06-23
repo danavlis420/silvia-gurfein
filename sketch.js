@@ -1,10 +1,10 @@
 // --- Variables globales de configuración y estado ---
 let capas = [];
 let direccionCapa = 1;
-let maxCapas = 3;
+let maxCapas = 4;
 let cantidadBastones;
 let anchoBaston;
-let velocidad = 0.5;
+let velocidad = 1;
 let paletas = [];
 let paletaElegida = {};
 let fondoElegido;
@@ -16,7 +16,7 @@ let ultimaPosY = 0;
 let ultimaDireccionY = 0;
 let ultimaDireccionX = 0;
 let porcentajeOscurecimiento = 0.50;
-let porcentajeDesvanecimiento = 0.25;
+let porcentajeDesvanecimiento = 0.30;
 let sensibilidadDesplazamiento = 0.1;
 let largoMaximoBaston;
 let contadorCapas = 0;
@@ -35,6 +35,7 @@ let sensibilidadFrecuencia = 0.8;
 let fft;
 let volumenMaximo = 0.08; // Ajustá este valor según tu micro
 let volumenSuavizado = 0; // Volumen suavizado para bastones nuevos
+let mostrarCartelInicio = true;
 
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
@@ -46,9 +47,12 @@ function setup() {
 
   // Iniciar audio tras interacción del usuario
   getAudioContext().suspend();
-  canvas.elt.addEventListener('mousedown', () => { // <-- usá canvas.elt
-    userStartAudio();
-    getAudioContext().resume();
+  canvas.elt.addEventListener('mousedown', () => {
+    if (mostrarCartelInicio) {
+      mostrarCartelInicio = false;
+      userStartAudio();
+      getAudioContext().resume();
+    }
   });
 
   mic = new p5.AudioIn();
@@ -93,6 +97,28 @@ function setup() {
 
 // --- Loop principal de dibujo ---
 function draw() {
+  if (mostrarCartelInicio) {
+
+    // Texto
+    fill(30);
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    text("click para comenzar", width/2, height/2 - 20);
+
+    // Logo de reproducir (triángulo)
+    fill(30);
+    noStroke();
+    let size = 48;
+    let x = width/2;
+    let y = height/2 + 32;
+    triangle(
+      x - size/2, y - size/2,
+      x - size/2, y + size/2,
+      x + size/2, y
+    );
+    return; // No dibujar la obra hasta que se haga click
+  }
+
   if (pausado) return;
   background(fondoElegido);
 
@@ -164,7 +190,9 @@ function draw() {
     for (let j = 0; j < capa.contadorBastones && j < capa.bastones.length; j++) {
       let baston = capa.bastones[j];
 
-      let posicionX = capa.direccion === 1 ? j * anchoBaston : width - j * anchoBaston;
+      let posicionX = capa.direccion === 1
+        ? map(j, 0, cantidadBastones - 1, anchoBaston / 2, width - anchoBaston / 2)
+        : map(j, 0, cantidadBastones - 1, width - anchoBaston / 2, anchoBaston / 2);
       let movimientoYExtra = 0;
       let alphaBase = capa.alphas[j] !== null ? capa.alphas[j] : 0;
       let colorLooped = capa.colores[j % cantidadBastones];
@@ -188,13 +216,16 @@ function draw() {
   let bar = document.getElementById('mic-bar');
   let barBg = document.getElementById('mic-bar-bg');
   let minDiv = document.getElementById('mic-min');
+  let maxDiv = document.getElementById('mic-max');
   let valueSpan = document.getElementById('mic-value');
-  if (bar && barBg && minDiv && valueSpan) {
+  if (bar && barBg && minDiv && maxDiv && valueSpan) {
     let h = barBg.offsetHeight;
     let minY = h - Math.round(map(umbralVolumen, 0, volumenMaximo, 0, h, true));
+    let maxY = h - Math.round(map(volumenMaximo, 0, volumenMaximo, 0, h, true));
     let valY = h - Math.round(map(volumenActual, 0, volumenMaximo, 0, h, true));
     bar.style.height = (h - valY) + "px";
     minDiv.style.bottom = minY + "px";
+    maxDiv.style.bottom = maxY + "px";
     valueSpan.textContent = volumenActual.toFixed(4);
   }
 }
@@ -391,30 +422,35 @@ window.addEventListener('DOMContentLoaded', () => {
   const maxValue = document.getElementById('umbral-max-value');
 
   if (minSlider && minValue && maxSlider && maxValue) {
+    // Los sliders se mueven normal, pero los valores están invertidos
     minSlider.addEventListener('input', () => {
-      umbralVolumen = parseFloat(minSlider.value);
-      minValue.textContent = minSlider.value;
-      // Evita que el mínimo supere al máximo
+      const min = parseFloat(minSlider.min);
+      const max = parseFloat(minSlider.max);
+      // Invertir el valor mostrado y usado
+      umbralVolumen = max - (parseFloat(minSlider.value) - min);
+      minValue.textContent = umbralVolumen.toFixed(3);
       if (umbralVolumen >= volumenMaximo) {
         volumenMaximo = umbralVolumen + 0.001;
-        maxSlider.value = volumenMaximo;
+        maxSlider.value = (maxSlider.max - (volumenMaximo - parseFloat(maxSlider.min))).toFixed(3);
         maxValue.textContent = volumenMaximo.toFixed(3);
       }
     });
     maxSlider.addEventListener('input', () => {
-      volumenMaximo = parseFloat(maxSlider.value);
-      maxValue.textContent = maxSlider.value;
-      // Evita que el máximo sea menor al mínimo
+      const min = parseFloat(maxSlider.min);
+      const max = parseFloat(maxSlider.max);
+      // Invertir el valor mostrado y usado
+      volumenMaximo = max - (parseFloat(maxSlider.value) - min);
+      maxValue.textContent = volumenMaximo.toFixed(3);
       if (volumenMaximo <= umbralVolumen) {
         umbralVolumen = volumenMaximo - 0.001;
-        minSlider.value = umbralVolumen;
+        minSlider.value = (minSlider.max - (umbralVolumen - parseFloat(minSlider.min))).toFixed(3);
         minValue.textContent = umbralVolumen.toFixed(3);
       }
     });
-    // Inicializa valores
-    minSlider.value = umbralVolumen;
-    minValue.textContent = umbralVolumen;
-    maxSlider.value = volumenMaximo;
-    maxValue.textContent = volumenMaximo;
+    // Inicializa valores invertidos
+    minSlider.value = (minSlider.max - (umbralVolumen - parseFloat(minSlider.min))).toFixed(3);
+    minValue.textContent = umbralVolumen.toFixed(3);
+    maxSlider.value = (maxSlider.max - (volumenMaximo - parseFloat(maxSlider.min))).toFixed(3);
+    maxValue.textContent = volumenMaximo.toFixed(3);
   }
 });

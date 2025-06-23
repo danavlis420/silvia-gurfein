@@ -73,6 +73,15 @@ class Sinusitis {
       this.esTransparente = true;
       return;
     } else {
+      // Si antes era transparente y ahora no, generá los hilos
+      if (this.esTransparente) {
+        this.hilos = [];
+        let numLineas = int(random(3, 6));
+        for (let i = 0; i < numLineas; i++) {
+          let offsetX = random(-this.ancho / 2 + 2, this.ancho / 2 - 2);
+          this.hilos.push({ offsetX: offsetX });
+        }
+      }
       this.esTransparente = false;
     }
 
@@ -104,9 +113,9 @@ class Sinusitis {
     rectMode(CENTER);
     noStroke();
 
-    // Oscilación vertical lenta de hasta 4px
-    let t = millis() * 0.0003 + this.x * 0.05; // velocidad y desfase por bastón
-    let oscilacion = sin(t) * 2; // entre -2 y +2 px
+    // Movimiento vertical suave: oscilación senoidal leve
+    let t = millis() * 0.00025 + this.x * 0.12; // velocidad y desfase por bastón
+    let desplazamientoSuave = sin(t) * 6; // amplitud de 6px (ajustable)
 
     let colorUsado = nuevoColor || this.color;
     let alfa = nuevaTransparencia !== null ? nuevaTransparencia : alpha(colorUsado);
@@ -122,7 +131,7 @@ class Sinusitis {
     let largoDibujar = typeof this.largoFijado !== "undefined" ? this.largoFijado : this.largo;
     rect(
       posicion,
-      this.movimientoBaseY + movimientoYExtra + oscilacion,
+      this.centroY + movimientoYExtra + desplazamientoSuave, // <--- movimiento vertical animado
       this.ancho,
       largoDibujar,
       this.esquinasRedondeadas
@@ -137,7 +146,7 @@ class Sinusitis {
           : color(hue(c), saturation(c) * 0.9, min(100, brilloBase * 1.2), alfa);
 
         stroke(hiloColor);
-        let yCentro = this.movimientoBaseY + movimientoYExtra + oscilacion;
+        let yCentro = this.centroY + movimientoYExtra + desplazamientoSuave;
         let y1 = yCentro - largoDibujar / 2;
         let y2 = yCentro + largoDibujar / 2;
         line(posicion + hilo.offsetX, y1, posicion + hilo.offsetX, y2);

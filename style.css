@@ -17,7 +17,7 @@ canvas {
   top: 12px;
   left: 16px;
   color: #fff;
-  background: rgba(25,25,25,0.85);
+  background: #191919d9;
   padding: 12px 18px;
   border-radius: 8px;
   font-family: 'Segoe UI', Arial, sans-serif;
@@ -71,4 +71,38 @@ canvas {
   border-radius: 10px;
   box-shadow: 0 2px 8px #0002;
   z-index: 100;
+}
+
+body {
+  background: #191919d9; /* O el color que prefieras */
+  /* ...otros estilos... */
+}
+
+#mic-meter {
+  background: #191919d9; /* Toma el color del body */
+}
+
+#mic-bar-bg {
+  background: #191919d9; /* Igual que el body */
+  border: 1px solid #bbb;
+}
+
+#mic-bar {
+  background: #4ad;
+  border-radius: 8px;
+}
+
+#mic-min, #mic-max {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #f55;
+  z-index: 2;
+}
+
+#mic-max {
+  background: #5c5;
+  top: 0;
+  bottom: unset;
 }
