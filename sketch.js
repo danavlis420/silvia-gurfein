@@ -39,6 +39,32 @@ let mostrarCartelInicio = true;
 
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
+
+  if (annyang) {
+    annyang.setLanguage('es-ES');
+    annyang.debug();
+  
+    var comandos = {
+      'uno': () => cambiarPaleta(0),
+      'dos': () => cambiarPaleta(1),
+      'tres': () => cambiarPaleta(2),
+      'cuatro': () => cambiarPaleta(3),
+      '1': () => cambiarPaleta(0),
+      '2': () => cambiarPaleta(1),
+      '3': () => cambiarPaleta(2),
+      '4': () => cambiarPaleta(3),
+      'paleta *numero': numero => {
+        const map = {uno:0, dos:1, tres:2, cuatro:3};
+        if (map[numero.toLowerCase()] !== undefined) cambiarPaleta(map[numero.toLowerCase()]);
+      }
+    };
+    annyang.addCommands(comandos);
+    annyang.start({ autoRestart: true, continuous: true });
+  } else {
+    console.warn("Tu navegador no soporta reconocimiento de voz o necesitas HTTPS.");
+  }
+  
+  
   let canvas = createCanvas(800, 600); // <-- guardá el canvas en una variable
   frameRate(24);
   colorMode(HSB, 360, 100, 100, 100);
@@ -230,6 +256,9 @@ function draw() {
   }
 }
 
+
+
+
 // --- Crea una nueva capa de bastones con parámetros aleatorios ---
 function crearNuevaCapa() {
   if (contadorCapas % 3 === 0 && contadorCapas !== 0) {
@@ -362,21 +391,9 @@ function keyPressed() {
 
   // Cambia la paleta con las teclas 1, 2, 3, 4
   if (['1', '2', '3', '4'].includes(key)) {
-    let idx = int(key) - 1;
-    if (paletas[idx]) {
-      paletaElegida = paletas[idx];
-      fondoElegido = hexToHSB(paletaElegida.fondo);
-      // Actualiza los colores de las capas activas
-      for (let c = 0; c < capas.length; c++) {
-        let nombreSubgrupo = subgruposPaleta[c % subgruposPaleta.length];
-        let paletaNueva = paletaElegida[nombreSubgrupo].map(hex => hexToHSB(hex));
-        for (let j = 0; j < capas[c].colores.length; j++) {
-          capas[c].colores[j] = paletaNueva[j % paletaNueva.length];
-          capas[c].bastones[j].color = capas[c].colores[j];
-        }
-      }
-    }
+    cambiarPaleta(int(key) - 1);
   }
+  
 }
 
 // --- Reinicia la obra con nuevos parámetros aleatorios ---
@@ -454,3 +471,18 @@ window.addEventListener('DOMContentLoaded', () => {
     maxValue.textContent = volumenMaximo.toFixed(3);
   }
 });
+
+function cambiarPaleta(idx) {
+  if (paletas[idx]) {
+    paletaElegida = paletas[idx];
+    fondoElegido = hexToHSB(paletaElegida.fondo);
+    for (let c = 0; c < capas.length; c++) {
+      let nombreSubgrupo = subgruposPaleta[c % subgruposPaleta.length];
+      let paletaNueva = paletaElegida[nombreSubgrupo].map(hex => hexToHSB(hex));
+      for (let j = 0; j < capas[c].colores.length; j++) {
+        capas[c].colores[j] = paletaNueva[j % paletaNueva.length];
+        capas[c].bastones[j].color = capas[c].colores[j];
+      }
+    }
+  }
+}
