@@ -124,12 +124,19 @@ function setup() {
 
 // --- Nueva función para iniciar la detección de aplausos con ScriptProcessorNode ---
 function iniciarDeteccionAplausos() {
-  if (scriptProcessor) return; // Ya inicializado
+  // Si ya existe, desconectalo y crealo de nuevo
+  if (scriptProcessor) {
+    try {
+      scriptProcessor.disconnect();
+      micStreamNode.disconnect();
+    } catch (e) {}
+    scriptProcessor = null;
+    micStreamNode = null;
+  }
 
   audioContext = getAudioContext();
   if (!audioContext) return;
 
-  // Obtener el stream del micrófono de p5.AudioIn
   let stream = mic.stream;
   if (!stream) return;
 
@@ -137,7 +144,6 @@ function iniciarDeteccionAplausos() {
 
   scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
 
-  // Ya está en tu iniciarDeteccionAplausos():
   scriptProcessor.onaudioprocess = function(e) {
     let input = e.inputBuffer.getChannelData(0);
     ultimoBufferAudio = input;
@@ -267,7 +273,7 @@ function draw() {
     // Detección de aplausos SOLO por buffer crudo
     let buffer = ultimoBufferAudio;
     if (
-      buffer && // <-- chequeo importante
+      buffer && buffer.length && // <-- chequeo importante
       detectarAplauso(buffer) &&
       (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
     ) {
