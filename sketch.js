@@ -121,6 +121,8 @@ let umbralEnergiaAltos = 10;   // mayor que 5.07 (así solo un pico fuerte lo su
 let umbralGraves = 100;        // opcional, bajalo si querés filtrar más graves
 
 function detectarAplausoYOtroSonido() {
+  // No detectar aplausos durante la calibración
+  if (calibrando) return;
   if (!fft) return;
   let ahora = millis();
   let energiaAltos = fft.getEnergy("treble");
@@ -128,8 +130,8 @@ function detectarAplausoYOtroSonido() {
   let energiaGraves = fft.getEnergy("bass");
 
   if (
-    energiaAltos > umbralEnergiaAltos &&
-    energiaTotal > umbralAplauso &&
+    energiaAltos > umbralEnergiaAltos &&    // Usar el umbral calibrado de agudos
+    energiaTotal > umbralAplauso &&         // Usar el umbral calibrado de volumen
     energiaGraves < umbralGraves &&
     ahora - ultimoCambioPaletaPorAplauso > tiempoEntreCambios
   ) {
@@ -155,9 +157,9 @@ function draw() {
     if (mensaje) {
       mensaje.innerHTML =
         `<div>Por favor, hacé silencio durante <b>${segundosRestantes}</b> segundos...</div>
-         <div style="margin-top:12px; font-size:1.2em;">
-           Nivel actual: <b>${nivel.toFixed(5)}</b>
-         </div>`;
+        <div style="margin-top:12px; font-size:1.2em;">
+          Nivel actual: <b>${nivel.toFixed(5)}</b>
+          </div>`;
     }
 
     if (ahora - tiempoInicioCalibracion >= duracionCalibracion) {
@@ -290,20 +292,22 @@ function draw() {
           `<b>¡Listo!</b> Volumen máximo calibrado: <b>${volumenMaximo.toFixed(5)}</b><br>
      ¡Calibración completa!<br><br>
      <button id="btn-calibrar-finalizar" style="font-size:1.1em; padding:8px 24px;">Finalizar</button>`;
+        // Asignar evento inmediatamente después de crear el botón
+        setTimeout(() => {
+          const btnFinalizar = document.getElementById('btn-calibrar-finalizar');
+          if (btnFinalizar) {
+            btnFinalizar.style.display = "";
+            btnFinalizar.onclick = () => {
+              calibrando = false;
+              pausado = false;
+              const modal = document.getElementById('calibracion-modal'); // <--- NUEVO
+              if (modal) modal.style.display = "none";                   // <--- NUEVO
+              mostrarCartelInicio = false; // Para que la obra arranque
+              resetObra();
+            };
+          }
+        }, 50);
       }
-      setTimeout(() => {
-        const btnFinalizar = document.getElementById('btn-calibrar-finalizar');
-        if (btnFinalizar) {
-          btnFinalizar.style.display = "";
-          btnFinalizar.onclick = () => {
-            calibrando = false;
-            pausado = false;
-            modal.style.display = "none";
-            mostrarCartelInicio = true;
-            resetObra();
-          };
-        }
-      }, 100);
     }
     return;
   }
