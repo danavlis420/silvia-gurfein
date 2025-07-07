@@ -213,7 +213,7 @@ function draw() {
   // --- ETAPA 0: SILENCIO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
     let ahora = millis();
-    let nivel = mic.getLevel();
+    let nivel = ultimoNivelAudio; // <-- CAMBIO AQUÍ
     muestrasSilencio.push(nivel);
 
     let segundosRestantes = Math.ceil((duracionCalibracion - (ahora - tiempoInicioCalibracion)) / 1000);
@@ -324,7 +324,7 @@ function draw() {
   // --- ETAPA 4: GRITO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 4) {
     let ahora = millis();
-    let nivel = mic.getLevel();
+    let nivel = ultimoNivelAudio; // <-- CAMBIO AQUÍ
     muestrasGrito.push(nivel);
 
     let segundosRestantes = Math.ceil((duracionGrito - (ahora - tiempoInicioGrito)) / 1000);
@@ -401,7 +401,7 @@ function draw() {
   background(fondoElegido);
 
   // Actualiza el volumen del micrófono
-  volumenActual = mic.getLevel();
+  volumenActual = ultimoNivelAudio; // <-- CAMBIO CLAVE
   // Suaviza el volumen para el próximo bastón
   volumenSuavizado = lerp(volumenSuavizado, volumenActual, 0.15);
 
@@ -427,7 +427,7 @@ function draw() {
           let baston = capa.bastones[idx];
           if (baston && typeof baston.largoFijado === "undefined") {
             // Suavizá el volumen entre el último y el actual
-            capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenSuavizado, 0.25);
+            capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenActual, 0.25);
             baston.truncarLargoPorVolumen(capa.ultimoVolumenBaston);
             baston.largoFijado = baston.largo;
           }
@@ -596,7 +596,7 @@ function crearNuevaCapa() {
       i, eje, ejeVariante, anchoBaston, col, esTransparente, centroY, frecuenciaLargoBase, esquinasRedondeadas
     );
     // Usar volumen suavizado para el largo
-    baston.truncarLargoPorVolumen(volumenSuavizado);
+    baston.truncarLargoPorVolumen(volumenActual);
     nueva.bastones.push(baston);
     nueva.colores.push(col);
     nueva.alphas.push(null);
@@ -712,6 +712,9 @@ window.addEventListener('DOMContentLoaded', () => {
         getAudioContext().resume();
         if (mic) mic.start();
       }
+      // INICIAR DETECCIÓN DE APLAUSOS (ScriptProcessorNode) SI NO ESTÁ INICIADA
+      iniciarDeteccionAplausos();
+
       mensaje.textContent = "Por favor, hacé silencio durante 5 segundos...";
       btnComenzar.style.display = "none";
       btnFinalizar.style.display = "none";
