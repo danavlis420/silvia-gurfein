@@ -167,16 +167,6 @@ function detectarAplauso(buffer) {
 
 // --- Loop principal de dibujo ---
 function draw() {
-  // --- Detección de aplausos durante la obra (también en pausa) ---
-  if (!calibrando && !mostrarCartelInicio) { // <--- quitá !pausado
-    let buffer = fft.waveform();
-    if (detectarAplauso(buffer)) {
-      let idxActual = paletas.indexOf(paletaElegida);
-      let idxSiguiente = (idxActual + 1) % paletas.length;
-      cambiarPaleta(idxSiguiente);
-      console.log('¡Aplauso detectado (obra/pausa)!');
-    }
-  }
 
   // --- ETAPA 0: SILENCIO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
