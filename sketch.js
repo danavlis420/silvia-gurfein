@@ -167,7 +167,16 @@ function detectarAplauso(buffer) {
 
 // --- Loop principal de dibujo ---
 function draw() {
-  detectarAplausoPorFFT();
+  // --- Detección de aplausos durante la obra ---
+  if (!calibrando && !mostrarCartelInicio && !pausado) {
+    let buffer = fft.waveform();
+    if (detectarAplauso(buffer)) {
+      let idxActual = paletas.indexOf(paletaElegida);
+      let idxSiguiente = (idxActual + 1) % paletas.length;
+      cambiarPaleta(idxSiguiente);
+      console.log('¡Aplauso detectado (obra)!');
+    }
+  }
 
   // --- ETAPA 0: SILENCIO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
@@ -710,16 +719,3 @@ function cambiarPaleta(idx) {
   }
 }
 
-
-
-function detectarAplausoPorFFT() {
-  let energia = fft.getEnergy("mid");
-  let ahora = millis();
-  let umbral = 200; // energía FFT mínima para considerar aplauso (ajustá según calibración)
-
-  if (energia > umbral && ahora - clapLastTime > clapMinInterval) {
-    console.log("¡Aplauso detectado!");
-    cambiarPaleta(); // cambia a la siguiente paleta
-    clapLastTime = ahora;
-  }
-}
