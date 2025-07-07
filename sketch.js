@@ -167,14 +167,14 @@ function detectarAplauso(buffer) {
 
 // --- Loop principal de dibujo ---
 function draw() {
-  // --- Detección de aplausos durante la obra ---
-  if (!calibrando && !mostrarCartelInicio && !pausado) {
+  // --- Detección de aplausos durante la obra (también en pausa) ---
+  if (!calibrando && !mostrarCartelInicio) { // <--- quitá !pausado
     let buffer = fft.waveform();
     if (detectarAplauso(buffer)) {
       let idxActual = paletas.indexOf(paletaElegida);
       let idxSiguiente = (idxActual + 1) % paletas.length;
       cambiarPaleta(idxSiguiente);
-      console.log('¡Aplauso detectado (obra)!');
+      console.log('¡Aplauso detectado (obra/pausa)!');
     }
   }
 
@@ -677,13 +677,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   if (btnCalibrar && modal && btnComenzar && btnFinalizar && mensaje) {
     btnCalibrar.addEventListener('click', () => {
-      calibrando = true;
-      pausado = true;
+      resetCalibracion();
+      const modal = document.getElementById('calibracion-modal');
+      const mensaje = document.getElementById('calibracion-mensaje');
       modal.style.display = "flex";
       mensaje.textContent = "¿Listo para calibrar el micrófono?";
       btnComenzar.style.display = "";
       btnFinalizar.style.display = "none";
-      calibracionEnProgreso = false;
     });
 
     btnComenzar.addEventListener('click', () => {
@@ -717,5 +717,20 @@ function cambiarPaleta(idx) {
       }
     }
   }
+}
+
+function resetCalibracion() {
+  calibrando = true;
+  pausado = true;
+  calibracionEnProgreso = false;
+  enCalibracion = false;
+  etapaCalibracion = 0;
+  muestrasSilencio = [];
+  muestrasAplausos = [];
+  aplausosDetectados = [];
+  muestrasGrito = [];
+  tiempoInicioCalibracion = 0;
+  tiempoInicioAplausos = 0;
+  tiempoInicioGrito = 0;
 }
 

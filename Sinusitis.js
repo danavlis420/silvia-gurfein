@@ -67,13 +67,11 @@ class Sinusitis {
     let minVol = typeof window.umbralVolumen !== "undefined" ? window.umbralVolumen : 0.003;
     let maxVol = typeof window.volumenMaximo !== "undefined" ? window.volumenMaximo : 0.08;
 
-    // Si el volumen está por debajo del mínimo, el bastón es transparente y de largo mínimo
     if (amplitud <= minVol) {
       this.largo = largoMinimo;
       this.esTransparente = true;
       return;
     } else {
-      // Si antes era transparente y ahora no, generá los hilos
       if (this.esTransparente) {
         this.hilos = [];
         let numLineas = int(random(3, 6));
@@ -85,13 +83,8 @@ class Sinusitis {
       this.esTransparente = false;
     }
 
-    // Mapeo robusto: si minVol == maxVol, evitar división por cero
-    let factor;
-    if (maxVol > minVol) {
-      factor = (amplitud - minVol) / (maxVol - minVol);
-    } else {
-      factor = 1; // Si el rango es inválido, usar largo máximo
-    }
+    // Mapeo: si amplitud >= maxVol, factor = 1 (largo máximo)
+    let factor = (amplitud - minVol) / (maxVol - minVol);
     factor = constrain(factor, 0, 1);
     this.largo = lerp(largoMinimo, largoMaximo, factor);
 
