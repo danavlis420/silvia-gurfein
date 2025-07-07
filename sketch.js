@@ -237,7 +237,7 @@ function draw() {
       let margenAplauso = 0.01;
       let margenAgudos = 5;
       umbralAplauso = promedioAplausos - margenAplauso;
-      umbralEnergiaAltos = promedioAgudos - margenAgudos;
+      umbralEnergiaAltos = Math.max(5, promedioAgudos - margenAgudos); // Asegura que el umbral no sea menor a 5
 
       // Mensaje intermedio e ir a etapa 3 (instrucción grito)
       etapaCalibracion = 3;
