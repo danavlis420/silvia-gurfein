@@ -203,18 +203,6 @@ function detectarAplauso(buffer) {
 
 // --- Loop principal de dibujo ---
 function draw() {
-  // --- Detección de aplausos durante la obra (también en pausa) ---
-  /*
-  if (!calibrando && !mostrarCartelInicio) {
-    let buffer = fft.waveform();
-    if (detectarAplauso(buffer)) {
-      let idxActual = paletas.indexOf(paletaElegida);
-      let idxSiguiente = (idxActual + 1) % paletas.length;
-      cambiarPaleta(idxSiguiente);
-      console.log('¡Aplauso detectado (obra/pausa)!');
-    }
-  }
-  */
 
   // --- ETAPA 0: SILENCIO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
@@ -227,7 +215,7 @@ function draw() {
     if (mensaje) {
       mensaje.innerHTML =
         `<div>Por favor, hacé silencio durante <b>${segundosRestantes}</b> segundos...</div>
-        <div style="margin-top:12px; font-size:1.2em;">
+        <div style="margin-top:16px; font-size:1.2em;">
           Nivel actual: <b>${nivel.toFixed(5)}</b>
           </div>`;
     }
@@ -403,9 +391,6 @@ function draw() {
     return;
   }
 
-  // NO hagas esto:
-  // if (pausado) return;
-
   background(fondoElegido);
 
   // Actualiza el volumen del micrófono
@@ -437,9 +422,6 @@ function draw() {
 
             
             if (baston && typeof baston.largoFijado === "undefined") {
-              //capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenActual, 0.25);
-              //baston.truncarLargoPorVolumen(capa.ultimoVolumenBaston);
-              //baston.largoFijado = baston.largo;
               baston.truncarLargoPorVolumen(volumenActual);
               baston.largoFijado = baston.largo;
 

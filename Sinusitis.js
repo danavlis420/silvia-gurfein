@@ -86,8 +86,12 @@ class Sinusitis {
     }
 
     // Mapeo lineal de largo entre minVol y maxVol
-    let factor = (amplitud - minVol) / (maxVol - minVol);
-    factor = constrain(factor, 0, 1);
+    let factorLineal = (amplitud - minVol) / (maxVol - minVol);
+    factorLineal = constrain(factorLineal, 0, 1);
+    // Aplicamos curva exponencial para mayor sensibilidad en volúmenes bajos
+    let sensibilidadExponencial = 0.4; // entre 0.1 y 1.0 (menor = más sensible)
+    let factor = pow(factorLineal, sensibilidadExponencial);
+
     this.largo = lerp(largoMinimo, largoMaximo, factor);
 
     // Ajuste para no salir del canvas

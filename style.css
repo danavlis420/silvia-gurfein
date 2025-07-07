@@ -59,7 +59,54 @@ canvas {
   background: #444;
 }
 
-#sensibilidad-mic {
+#calibracion-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 10, 10, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  font-family: 'Arial', sans-serif;
+}
+
+#calibracion-mensaje {
+  background: white;
+  border-radius: 16px;
+  padding: 32px 40px;
+  max-width: 480px;
+  text-align: center;
+  box-shadow: 0 0 20px rgba(0,0,0,0.3);
+  font-size: 1.2em;
+  line-height: 1.6em;
+  color: #333;
+}
+
+#calibracion-mensaje b {
+  color: #D4145A;
+}
+
+#calibracion-mensaje button {
+  background-color: #D4145A;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 16px;
+}
+
+#calibracion-mensaje button:hover {
+  background-color: #aa0e45;
+}
+
+
+/*#sensibilidad-mic {
   background: #191919 !important;
   color: #fff;
   position: fixed;
@@ -71,19 +118,19 @@ canvas {
   border-radius: 10px;
   box-shadow: 0 2px 8px #0002;
   z-index: 100;
-}
+}*/
 
 body {
   background: #191919d9; /* O el color que prefieras */
   /* ...otros estilos... */
 }
 
-#mic-meter {
-  background: #191919d9; /* Toma el color del body */
+/*#mic-meter {
+  background: #191919d9; /* Toma el color del body 
 }
 
 #mic-bar-bg {
-  background: #191919d9; /* Igual que el body */
+  background: #191919d9; /* Igual que el body 
   border: 1px solid #bbb;
 }
 
@@ -106,3 +153,4 @@ body {
   top: 0;
   bottom: unset;
 }
+*/
