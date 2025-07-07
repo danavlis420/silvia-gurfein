@@ -403,7 +403,9 @@ function draw() {
     return;
   }
 
-  if (pausado) return;
+  // NO hagas esto:
+  // if (pausado) return;
+
   background(fondoElegido);
 
   // Actualiza el volumen del micrófono
@@ -420,27 +422,27 @@ function draw() {
 
     // Agrega bastones progresivamente en la capa activa
     if (i === capas.length - 1 && capa.contadorBastones < cantidadBastones) {
-      let desde = Math.floor(capa.contadorBastones);
-      let hasta = Math.min(Math.floor(capa.contadorBastones + velocidad), cantidadBastones);
+      if (!pausado) { // Solo si NO está en pausa, avanza el contador
+        let desde = Math.floor(capa.contadorBastones);
+        let hasta = Math.min(Math.floor(capa.contadorBastones + velocidad), cantidadBastones);
 
-      // Variable para suavizar el volumen entre bastones
-      if (typeof capa.ultimoVolumenBaston === "undefined") capa.ultimoVolumenBaston = volumenSuavizado;
+        if (typeof capa.ultimoVolumenBaston === "undefined") capa.ultimoVolumenBaston = volumenSuavizado;
 
-      for (let idx = desde; idx < hasta; idx++) {
-        if (idx < capa.bastones.length && capa.alphas[idx] === null) {
-          let alphaBase = (volumenActual < umbralVolumen) ? 0 : (capa.bastones[idx].esTransparente ? 0 : capa.alpha);
+        for (let idx = desde; idx < hasta; idx++) {
+          if (idx < capa.bastones.length && capa.alphas[idx] === null) {
+            let alphaBase = (volumenActual < umbralVolumen) ? 0 : (capa.bastones[idx].esTransparente ? 0 : capa.alpha);
 
-          let baston = capa.bastones[idx];
-          if (baston && typeof baston.largoFijado === "undefined") {
-            // Suavizá el volumen entre el último y el actual
-            capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenActual, 0.25);
-            baston.truncarLargoPorVolumen(capa.ultimoVolumenBaston);
-            baston.largoFijado = baston.largo;
+            let baston = capa.bastones[idx];
+            if (baston && typeof baston.largoFijado === "undefined") {
+              capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenActual, 0.25);
+              baston.truncarLargoPorVolumen(capa.ultimoVolumenBaston);
+              baston.largoFijado = baston.largo;
+            }
+            capa.alphas[idx] = alphaBase;
           }
-          capa.alphas[idx] = alphaBase;
         }
+        capa.contadorBastones += velocidad;
       }
-      capa.contadorBastones += velocidad;
     }
 
     // Transición y desvanecimiento de capas viejas
