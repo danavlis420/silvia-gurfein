@@ -54,6 +54,12 @@ let muestrasGrito = [];
 let tiempoInicioGrito = 0;
 let duracionGrito = 3000; // 3 segundos para gritar
 
+let clapLastTime = 0;
+let clapMinInterval = 200; // ms entre aplausos válidos
+let scriptProcessor = null;
+let audioContext = null;
+let micStreamNode = null;
+
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
 
@@ -217,12 +223,18 @@ function draw() {
     let energiaAltos = fft.getEnergy("treble");
     muestrasAplausos.push({nivel, energiaAltos, tiempo: ahora});
 
-    // Mostramos en consola para ajustar si hace falta
-    console.log('Aplauso: nivel', nivel, 'agudos', energiaAltos);
-
     // Detección de picos de aplauso (solo volumen, para no perder ninguno)
     if (
       nivel > umbralVolumen + 0.03 && // margen menor para facilitar detección
+      (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
+    ) {
+      aplausosDetectados.push({nivel, energiaAltos, tiempo: ahora});
+    }
+
+    let buffer = fft.waveform(); // o usá el buffer crudo si lo tenés
+
+    if (
+      detectarAplauso(buffer) &&
       (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
     ) {
       aplausosDetectados.push({nivel, energiaAltos, tiempo: ahora});
