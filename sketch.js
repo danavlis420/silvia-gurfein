@@ -120,27 +120,34 @@ let umbralAplauso = 0.02;      // mayor que 0.0075
 let umbralEnergiaAltos = 10;   // mayor que 5.07 (así solo un pico fuerte lo supera)
 let umbralGraves = 100;        // opcional, bajalo si querés filtrar más graves
 
+let lastClapTime = 0;
+let clapMinInterval = 200; // ms entre aplausos válidos
+
+function detectClapFromBuffer(buffer) {
+  let t = millis();
+  if (t - lastClapTime < clapMinInterval) return false;
+  let zeroCrossings = 0, highAmp = 0;
+  for (let i = 1; i < buffer.length; i++) {
+    if (Math.abs(buffer[i]) > 0.25) highAmp++;
+    if ((buffer[i] > 0 && buffer[i - 1] < 0) || (buffer[i] < 0 && buffer[i - 1] > 0)) zeroCrossings++;
+  }
+  if (highAmp > 20 && zeroCrossings > 30) {
+    lastClapTime = t;
+    return true;
+  }
+  return false;
+}
+
 function detectarAplausoYOtroSonido() {
   if (calibrando) return;
   if (!fft) return;
-  let ahora = millis();
-  let energiaAltos = fft.getEnergy("treble");
-  let energiaTotal = mic.getLevel();
-  let energiaGraves = fft.getEnergy("bass");
-
-  // Debug: Mostrá valores en consola
-  console.log('treble:', energiaAltos, 'umbral:', umbralEnergiaAltos, 'nivel:', energiaTotal, 'umbral aplauso:', umbralAplauso);
-
-  if (
-    energiaAltos > umbralEnergiaAltos &&
-    energiaTotal > umbralAplauso &&
-    energiaGraves < umbralGraves &&
-    ahora - ultimoCambioPaletaPorAplauso > tiempoEntreCambios
-  ) {
+  let buffer = fft.waveform();
+  if (detectClapFromBuffer(buffer)) {
     let idxActual = paletas.indexOf(paletaElegida);
     let idxSiguiente = (idxActual + 1) % paletas.length;
     cambiarPaleta(idxSiguiente);
-    ultimoCambioPaletaPorAplauso = ahora;
+    ultimoCambioPaletaPorAplauso = millis();
+    console.log('¡Aplauso detectado!');
   }
 }
 
