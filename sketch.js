@@ -57,19 +57,20 @@ let duracionGrito = 3000; // 3 segundos para gritar
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
 
-  let canvas = createCanvas(800, 600); // <-- guardá el canvas en una variable
+  // Iniciar audio tras interacción del usuario
+  getAudioContext().suspend();
+  let canvas = createCanvas(800, 600);
   frameRate(24);
   colorMode(HSB, 360, 100, 100, 100);
   noStroke();
   largoMaximoBaston = height * 0.8;
 
-  // Iniciar audio tras interacción del usuario
-  getAudioContext().suspend();
   canvas.elt.addEventListener('mousedown', () => {
     if (mostrarCartelInicio) {
       mostrarCartelInicio = false;
       userStartAudio();
       getAudioContext().resume();
+      iniciarDeteccionAplausos();
     }
   });
 
@@ -113,47 +114,53 @@ function setup() {
   resetObra();
 }
 
-// --- Detección de aplauso/snare para cambiar paleta ---
-let ultimoCambioPaletaPorAplauso = 0;
-let tiempoEntreCambios = 500; // milisegundos entre cambios de paleta por aplauso/snare
-let umbralAplauso = 0.02;      // mayor que 0.0075
-let umbralEnergiaAltos = 10;   // mayor que 5.07 (así solo un pico fuerte lo supera)
-let umbralGraves = 100;        // opcional, bajalo si querés filtrar más graves
+// --- Nueva función para iniciar la detección de aplausos con ScriptProcessorNode ---
+function iniciarDeteccionAplausos() {
+  if (scriptProcessor) return; // Ya inicializado
 
-let lastClapTime = 0;
-let clapMinInterval = 200; // ms entre aplausos válidos
+  audioContext = getAudioContext();
+  if (!audioContext) return;
 
-function detectClapFromBuffer(buffer) {
+  // Obtener el stream del micrófono de p5.AudioIn
+  let stream = mic.stream;
+  if (!stream) return;
+
+  micStreamNode = audioContext.createMediaStreamSource(stream);
+
+  scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
+
+  scriptProcessor.onaudioprocess = function(e) {
+    let input = e.inputBuffer.getChannelData(0);
+    if (detectarAplauso(input)) {
+      let idxActual = paletas.indexOf(paletaElegida);
+      let idxSiguiente = (idxActual + 1) % paletas.length;
+      cambiarPaleta(idxSiguiente);
+      console.log('¡Aplauso detectado!');
+    }
+  };
+
+  micStreamNode.connect(scriptProcessor);
+  scriptProcessor.connect(audioContext.destination);
+}
+
+// --- Detección de aplauso basada en zero crossings y amplitud ---
+function detectarAplauso(buffer) {
   let t = millis();
-  if (t - lastClapTime < clapMinInterval) return false;
+  if (t - clapLastTime < clapMinInterval) return false;
   let zeroCrossings = 0, highAmp = 0;
   for (let i = 1; i < buffer.length; i++) {
     if (Math.abs(buffer[i]) > 0.25) highAmp++;
     if ((buffer[i] > 0 && buffer[i - 1] < 0) || (buffer[i] < 0 && buffer[i - 1] > 0)) zeroCrossings++;
   }
   if (highAmp > 20 && zeroCrossings > 30) {
-    lastClapTime = t;
+    clapLastTime = t;
     return true;
   }
   return false;
 }
 
-function detectarAplausoYOtroSonido() {
-  if (calibrando) return;
-  if (!fft) return;
-  let buffer = fft.waveform();
-  if (detectClapFromBuffer(buffer)) {
-    let idxActual = paletas.indexOf(paletaElegida);
-    let idxSiguiente = (idxActual + 1) % paletas.length;
-    cambiarPaleta(idxSiguiente);
-    ultimoCambioPaletaPorAplauso = millis();
-    console.log('¡Aplauso detectado!');
-  }
-}
-
 // --- Loop principal de dibujo ---
 function draw() {
-  detectarAplausoYOtroSonido();
 
   // --- ETAPA 0: SILENCIO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
