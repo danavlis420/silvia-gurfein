@@ -1,5 +1,5 @@
 // --- Variables globales de configuración y estado ---
-let capas = [];
+let capas = []; 
 let direccionCapa = 1;
 let maxCapas = 4;
 let cantidadBastones;
