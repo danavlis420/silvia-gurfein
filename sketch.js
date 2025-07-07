@@ -431,9 +431,11 @@ function draw() {
         for (let idx = desde; idx < hasta; idx++) {
           if (idx < capa.bastones.length && capa.alphas[idx] === null) {
             //let alphaBase = (volumenActual < umbralVolumen) ? 0 : (capa.bastones[idx].esTransparente ? 0 : capa.alpha);
+            let baston = capa.bastones[idx];
+            
             let alphaBase = (baston.esTransparente || volumenActual < umbralVolumen) ? 0 : capa.alpha;
 
-            let baston = capa.bastones[idx];
+            
             if (baston && typeof baston.largoFijado === "undefined") {
               //capa.ultimoVolumenBaston = lerp(capa.ultimoVolumenBaston, volumenActual, 0.25);
               //baston.truncarLargoPorVolumen(capa.ultimoVolumenBaston);
