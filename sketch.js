@@ -59,6 +59,8 @@ let clapMinInterval = 200; // ms entre aplausos válidos
 let scriptProcessor = null;
 let audioContext = null;
 let micStreamNode = null;
+let ultimoBufferAudio = null;
+let ultimoNivelAudio = 0;
 
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
@@ -135,13 +137,41 @@ function iniciarDeteccionAplausos() {
 
   scriptProcessor = audioContext.createScriptProcessor(2048, 1, 1);
 
+  // Ya está en tu iniciarDeteccionAplausos():
   scriptProcessor.onaudioprocess = function(e) {
     let input = e.inputBuffer.getChannelData(0);
-    if (detectarAplauso(input)) {
-      let idxActual = paletas.indexOf(paletaElegida);
-      let idxSiguiente = (idxActual + 1) % paletas.length;
-      cambiarPaleta(idxSiguiente);
-      console.log('¡Aplauso detectado!');
+    ultimoBufferAudio = input;
+    // Calculá el nivel RMS del buffer crudo
+    let sum = 0;
+    for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+    ultimoNivelAudio = Math.sqrt(sum / input.length);
+
+    // Detección de aplausos para la obra
+    if (!calibrando && !mostrarCartelInicio) {
+      if (detectarAplauso(input)) {
+        let idxActual = paletas.indexOf(paletaElegida);
+        let idxSiguiente = (idxActual + 1) % paletas.length;
+        cambiarPaleta(idxSiguiente);
+        console.log('¡Aplauso detectado!');
+      }
+    }
+
+    // Detección de aplausos para calibración (etapa 2)
+    if (calibrando && calibracionEnProgreso && etapaCalibracion === 2) {
+      let ahora = millis();
+      let nivel = ultimoNivelAudio;
+      muestrasAplausos.push({nivel, tiempo: ahora});
+      if (
+        detectarAplauso(input) &&
+        (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
+      ) {
+        aplausosDetectados.push({nivel, tiempo: ahora});
+      }
+    }
+
+    // Detección de grito para calibración (etapa 4)
+    if (calibrando && calibracionEnProgreso && etapaCalibracion === 4) {
+      muestrasGrito.push(ultimoNivelAudio);
     }
   };
 
@@ -167,6 +197,18 @@ function detectarAplauso(buffer) {
 
 // --- Loop principal de dibujo ---
 function draw() {
+  // --- Detección de aplausos durante la obra (también en pausa) ---
+  /*
+  if (!calibrando && !mostrarCartelInicio) {
+    let buffer = fft.waveform();
+    if (detectarAplauso(buffer)) {
+      let idxActual = paletas.indexOf(paletaElegida);
+      let idxSiguiente = (idxActual + 1) % paletas.length;
+      cambiarPaleta(idxSiguiente);
+      console.log('¡Aplauso detectado (obra/pausa)!');
+    }
+  }
+  */
 
   // --- ETAPA 0: SILENCIO ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
@@ -231,7 +273,7 @@ function draw() {
       aplausosDetectados.push({nivel, energiaAltos, tiempo: ahora});
     }
 
-    let buffer = fft.waveform(); // o usá el buffer crudo si lo tenés
+    let buffer = ultimoBufferAudio; // o usá el buffer crudo si lo tenés
 
     if (
       detectarAplauso(buffer) &&
