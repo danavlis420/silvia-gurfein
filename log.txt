@@ -1,5 +1,1 @@
-sketch.js:187 Uncaught TypeError: Cannot read properties of null (reading 'length')
-    at detectarAplauso (sketch.js:187:30)
-    at draw (sketch.js:279:7)
-    at e.default.redraw (p5.min.js:2:542863)
-    at _draw (p5.min.js:2:466768)
+sketch.js:145 [Deprecation] The ScriptProcessorNode is deprecated. Use AudioWorkletNode instead. (https://bit.ly/audio-worklet)
