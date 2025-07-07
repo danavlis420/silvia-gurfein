@@ -121,7 +121,6 @@ let umbralEnergiaAltos = 10;   // mayor que 5.07 (así solo un pico fuerte lo su
 let umbralGraves = 100;        // opcional, bajalo si querés filtrar más graves
 
 function detectarAplausoYOtroSonido() {
-  // No detectar aplausos durante la calibración
   if (calibrando) return;
   if (!fft) return;
   let ahora = millis();
@@ -129,9 +128,12 @@ function detectarAplausoYOtroSonido() {
   let energiaTotal = mic.getLevel();
   let energiaGraves = fft.getEnergy("bass");
 
+  // Debug: Mostrá valores en consola
+  console.log('treble:', energiaAltos, 'umbral:', umbralEnergiaAltos, 'nivel:', energiaTotal, 'umbral aplauso:', umbralAplauso);
+
   if (
-    energiaAltos > umbralEnergiaAltos &&    // Usar el umbral calibrado de agudos
-    energiaTotal > umbralAplauso &&         // Usar el umbral calibrado de volumen
+    energiaAltos > umbralEnergiaAltos &&
+    energiaTotal > umbralAplauso &&
     energiaGraves < umbralGraves &&
     ahora - ultimoCambioPaletaPorAplauso > tiempoEntreCambios
   ) {
@@ -235,9 +237,9 @@ function draw() {
       let promedioAplausos = niveles.reduce((a, b) => a + b, 0) / niveles.length;
       let promedioAgudos = agudos.reduce((a, b) => a + b, 0) / agudos.length;
       let margenAplauso = 0.01;
-      let margenAgudos = 5;
+      let margenAgudos = 1;
       umbralAplauso = promedioAplausos - margenAplauso;
-      umbralEnergiaAltos = Math.max(5, promedioAgudos - margenAgudos); // Asegura que el umbral no sea menor a 5
+      umbralEnergiaAltos = Math.max(0.5, promedioAgudos - margenAgudos); // Asegura que el umbral no sea menor a 5
 
       // Mensaje intermedio e ir a etapa 3 (instrucción grito)
       etapaCalibracion = 3;
