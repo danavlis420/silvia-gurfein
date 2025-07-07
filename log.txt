@@ -1,1 +1,0 @@
-sketch.js:145 [Deprecation] The ScriptProcessorNode is deprecated. Use AudioWorkletNode instead. (https://bit.ly/audio-worklet)
