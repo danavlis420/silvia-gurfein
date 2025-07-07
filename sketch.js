@@ -261,25 +261,17 @@ function draw() {
   // --- ETAPA 2: DETECCIÓN DE APLAUSOS ---
   if (calibrando && calibracionEnProgreso && etapaCalibracion === 2) {
     let ahora = millis();
-    let nivel = mic.getLevel();
-    let energiaAltos = fft.getEnergy("treble");
-    muestrasAplausos.push({nivel, energiaAltos, tiempo: ahora});
+    let nivel = ultimoNivelAudio;
+    muestrasAplausos.push({nivel, tiempo: ahora});
 
-    // Detección de picos de aplauso (solo volumen, para no perder ninguno)
+    // Detección de aplausos SOLO por buffer crudo
+    let buffer = ultimoBufferAudio;
     if (
-      nivel > umbralVolumen + 0.03 && // margen menor para facilitar detección
-      (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
-    ) {
-      aplausosDetectados.push({nivel, energiaAltos, tiempo: ahora});
-    }
-
-    let buffer = ultimoBufferAudio; // o usá el buffer crudo si lo tenés
-
-    if (
+      buffer && // <-- chequeo importante
       detectarAplauso(buffer) &&
       (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
     ) {
-      aplausosDetectados.push({nivel, energiaAltos, tiempo: ahora});
+      aplausosDetectados.push({nivel, tiempo: ahora});
     }
 
     let segundosRestantes = Math.ceil((duracionAplausos - (ahora - tiempoInicioAplausos)) / 1000);
@@ -289,11 +281,11 @@ function draw() {
         `<div>Aplaudí <b>3 veces</b> en <b>${segundosRestantes}</b> segundos...</div>
          <div style="margin-top:12px; font-size:1.2em;">
            Nivel actual: <b>${nivel.toFixed(5)}</b><br>
-           Agudos: <b>${energiaAltos.toFixed(2)}</b><br>
            Aplausos detectados: <b>${aplausosDetectados.length}</b>
          </div>`;
     }
 
+    // Finaliza si detectó 3 aplausos o pasaron 5 segundos
     if (
       ahora - tiempoInicioAplausos >= duracionAplausos ||
       aplausosDetectados.length >= cantidadAplausosNecesarios
@@ -301,20 +293,15 @@ function draw() {
       calibracionEnProgreso = false;
       // Tomar los 3 picos más altos
       let niveles = aplausosDetectados.map(a => a.nivel).sort((a, b) => b - a).slice(0, 3);
-      let agudos = aplausosDetectados.map(a => a.energiaAltos).sort((a, b) => b - a).slice(0, 3);
       let promedioAplausos = niveles.reduce((a, b) => a + b, 0) / niveles.length;
-      let promedioAgudos = agudos.reduce((a, b) => a + b, 0) / agudos.length;
       let margenAplauso = 0.01;
-      let margenAgudos = 1;
       umbralAplauso = promedioAplausos - margenAplauso;
-      umbralEnergiaAltos = Math.max(0.5, promedioAgudos - margenAgudos); // Asegura que el umbral no sea menor a 5
 
       // Mensaje intermedio e ir a etapa 3 (instrucción grito)
       etapaCalibracion = 3;
       if (mensaje) {
         mensaje.innerHTML =
-          `<b>¡Listo!</b> Umbral de aplauso calibrado: <b>${umbralAplauso.toFixed(5)}</b><br>
-           Umbral de agudos calibrado: <b>${umbralEnergiaAltos.toFixed(2)}</b><br><br>
+          `<b>¡Listo!</b> Umbral de aplauso calibrado: <b>${umbralAplauso.toFixed(5)}</b><br><br>
            Ahora vamos a calibrar el volumen máximo.<br>
            Cuando estés listo, apretá <b>Siguiente</b> y gritá fuerte durante <b>3 segundos</b>.<br><br>
            <button id="btn-calibrar-grito" style="font-size:1.1em; padding:8px 24px;">Siguiente</button>`;
