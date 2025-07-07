@@ -61,14 +61,16 @@ class Sinusitis {
 
   // Nuevo método para truncar el largo según el volumen
   truncarLargoPorVolumen(amplitud) {
-    const largoMinimo = 40;
-    const largoMaximo = largoMaximoBaston;
+    // Largo mínimo y máximo según el canvas
+    const largoMinimo = height * 0.05;
+    const largoMaximo = height * 0.8;
 
     let minVol = typeof window.umbralVolumen !== "undefined" ? window.umbralVolumen : 0.003;
     let maxVol = typeof window.volumenMaximo !== "undefined" ? window.volumenMaximo : 0.08;
 
+    // Invisible si no supera el umbral de ruido
     if (amplitud <= minVol) {
-      this.largo = largoMinimo;
+      this.largo = 0;
       this.esTransparente = true;
       return;
     } else {
@@ -83,7 +85,7 @@ class Sinusitis {
       this.esTransparente = false;
     }
 
-    // Mapeo: si amplitud >= maxVol, factor = 1 (largo máximo)
+    // Mapeo lineal de largo entre minVol y maxVol
     let factor = (amplitud - minVol) / (maxVol - minVol);
     factor = constrain(factor, 0, 1);
     this.largo = lerp(largoMinimo, largoMaximo, factor);
