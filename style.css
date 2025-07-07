@@ -44,7 +44,7 @@ canvas {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
-#btn-save {
+#btn-save, #btn-calibrar {
   margin-top: 8px;
   font-size: 1.3rem;
   background: #222;

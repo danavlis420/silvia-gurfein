@@ -12,7 +12,7 @@
     <script src="libraries/p5.sound.min.js"></script>
     <script src="Sinusitis.js"></script>
     <script src="sketch.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script> -->
 
   </head>
 
@@ -27,24 +27,21 @@
     </div>
     <div id="info-controles">
       R → Reset<br>
-      Espacio → Pausa<br> <br>
+      Espacio → Pausa<br>
+      M → Mostrar/ocultar menú y medidor<br>
+      F → Pantalla completa<br>
+      <br>
       Aplaudí o presioná en el teclado para<br> cambiar la paleta de colores<br>
       <br><br>
       <button id="btn-save" title="Guardar imagen">
         💾
       </button>
+      <button id="btn-calibrar" title="Calibrar micrófono">
+        🎤
+      </button>
       <br><br>
     </div>
-    <div id="sensibilidad-mic"
-  style="position:fixed; right:20px; bottom:20px; background:inherit; padding:16px 12px 12px 12px; border-radius:14px; box-shadow:0 2px 8px #0002; z-index:210; display:flex; flex-direction:column; align-items:center; gap:8px;">
-  <label for="umbral-min-slider" style="font-size:13px;">Mín. sensibilidad</label>
-  <input type="range" id="umbral-min-slider" min="0" max="0.05" step="0.001" value="0.003" style="width:90px; ">
-  <span id="umbral-min-value" style="font-size:12px;">0.003</span>
-  <label for="umbral-max-slider" style="font-size:13px; margin-top:8px;">Máx. sensibilidad</label>
-  <input type="range" id="umbral-max-slider" min="0.01" max="0.2" step="0.001" value="0.08" style="width:90px;">
-  <span id="umbral-max-value" style="font-size:12px;">0.08</span>
-</div>
-<div id="mic-meter" style="position:fixed; left:20px; top:50%; transform:translateY(-50%); width:40px; height:300px; background:#eee; border-radius:16px; box-shadow:0 2px 8px #0002; display:flex; flex-direction:column; align-items:center; z-index:200;">
+    <div id="mic-meter" style="position:fixed; left:20px; top:50%; transform:translateY(-50%); width:40px; height:300px; background:#eee; border-radius:16px; box-shadow:0 2px 8px #0002; display:flex; flex-direction:column; align-items:center; z-index:200;">
   <span style="font-size:11px; margin-top:8px;">max</span>
   <div id="mic-bar-bg" style="position:relative; width:16px; height:220px; background:inherit; border-radius:8px; margin:8px 0; display:flex; align-items:flex-end;">
     <div id="mic-bar" style="width:100%; background:#4ad; border-radius:8px 8px 8px 8px; height:0%;"></div>
@@ -53,6 +50,13 @@
   </div>
   <span style="font-size:11px; margin-bottom:8px;">min</span>
   <span id="mic-value" style="font-size:12px; margin-bottom:8px;">0.0000</span>
+</div>
+<div id="calibracion-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#0008; z-index:999; align-items:center; justify-content:center;">
+  <div style="background:#fff; padding:32px 24px; border-radius:16px; box-shadow:0 4px 24px #0004; display:flex; flex-direction:column; align-items:center; gap:24px;">
+    <div id="calibracion-mensaje" style="font-size:1.3em; color:#222;">¿Listo para calibrar el micrófono?</div>
+    <button id="btn-calibrar-comenzar" style="font-size:1.1em; padding:8px 24px;">Comenzar</button>
+    <button id="btn-calibrar-finalizar" style="font-size:1.1em; padding:8px 24px; display:none;">Finalizar</button>
+  </div>
 </div>
   </body>
 </html>

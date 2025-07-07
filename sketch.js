@@ -36,35 +36,27 @@ let fft;
 let volumenMaximo = 0.08; // Ajustá este valor según tu micro
 let volumenSuavizado = 0; // Volumen suavizado para bastones nuevos
 let mostrarCartelInicio = true;
+let enCalibracion = false;
+let calibrando = false;
+let calibracionEnProgreso = false;
+let muestrasSilencio = [];
+let tiempoInicioCalibracion = 0;
+let duracionCalibracion = 5000; // 5 segundos
+
+// --- NUEVAS VARIABLES GLOBALES ---
+let etapaCalibracion = 0; // 0: silencio, 1: instrucciones aplauso, 2: aplausos, 3: instrucciones grito, 4: grito, 5: final
+let muestrasAplausos = [];
+let aplausosDetectados = [];
+let tiempoInicioAplausos = 0;
+let duracionAplausos = 5000;
+let cantidadAplausosNecesarios = 3;
+let muestrasGrito = [];
+let tiempoInicioGrito = 0;
+let duracionGrito = 3000; // 3 segundos para gritar
 
 // --- Configuración inicial del canvas y paletas ---
 function setup() {
 
-  if (annyang) {
-    annyang.setLanguage('es-ES');
-    annyang.debug();
-  
-    var comandos = {
-      'uno': () => cambiarPaleta(0),
-      'dos': () => cambiarPaleta(1),
-      'tres': () => cambiarPaleta(2),
-      'cuatro': () => cambiarPaleta(3),
-      '1': () => cambiarPaleta(0),
-      '2': () => cambiarPaleta(1),
-      '3': () => cambiarPaleta(2),
-      '4': () => cambiarPaleta(3),
-      'paleta *numero': numero => {
-        const map = {uno:0, dos:1, tres:2, cuatro:3};
-        if (map[numero.toLowerCase()] !== undefined) cambiarPaleta(map[numero.toLowerCase()]);
-      }
-    };
-    annyang.addCommands(comandos);
-    annyang.start({ autoRestart: true, continuous: true });
-  } else {
-    console.warn("Tu navegador no soporta reconocimiento de voz o necesitas HTTPS.");
-  }
-  
-  
   let canvas = createCanvas(800, 600); // <-- guardá el canvas en una variable
   frameRate(24);
   colorMode(HSB, 360, 100, 100, 100);
@@ -121,16 +113,215 @@ function setup() {
   resetObra();
 }
 
+// --- Detección de aplauso/snare para cambiar paleta ---
+let ultimoCambioPaletaPorAplauso = 0;
+let tiempoEntreCambios = 500; // milisegundos entre cambios de paleta por aplauso/snare
+let umbralAplauso = 0.02;      // mayor que 0.0075
+let umbralEnergiaAltos = 10;   // mayor que 5.07 (así solo un pico fuerte lo supera)
+let umbralGraves = 100;        // opcional, bajalo si querés filtrar más graves
+
+function detectarAplausoYOtroSonido() {
+  if (!fft) return;
+  let ahora = millis();
+  let energiaAltos = fft.getEnergy("treble");
+  let energiaTotal = mic.getLevel();
+  let energiaGraves = fft.getEnergy("bass");
+
+  if (
+    energiaAltos > umbralEnergiaAltos &&
+    energiaTotal > umbralAplauso &&
+    energiaGraves < umbralGraves &&
+    ahora - ultimoCambioPaletaPorAplauso > tiempoEntreCambios
+  ) {
+    let idxActual = paletas.indexOf(paletaElegida);
+    let idxSiguiente = (idxActual + 1) % paletas.length;
+    cambiarPaleta(idxSiguiente);
+    ultimoCambioPaletaPorAplauso = ahora;
+  }
+}
+
 // --- Loop principal de dibujo ---
 function draw() {
-  if (mostrarCartelInicio) {
+  detectarAplausoYOtroSonido();
 
-    // Texto
+  // --- ETAPA 0: SILENCIO ---
+  if (calibrando && calibracionEnProgreso && etapaCalibracion === 0) {
+    let ahora = millis();
+    let nivel = mic.getLevel();
+    muestrasSilencio.push(nivel);
+
+    let segundosRestantes = Math.ceil((duracionCalibracion - (ahora - tiempoInicioCalibracion)) / 1000);
+    const mensaje = document.getElementById('calibracion-mensaje');
+    if (mensaje) {
+      mensaje.innerHTML =
+        `<div>Por favor, hacé silencio durante <b>${segundosRestantes}</b> segundos...</div>
+         <div style="margin-top:12px; font-size:1.2em;">
+           Nivel actual: <b>${nivel.toFixed(5)}</b>
+         </div>`;
+    }
+
+    if (ahora - tiempoInicioCalibracion >= duracionCalibracion) {
+      calibracionEnProgreso = false;
+      // Calcular umbral de ruido
+      let suma = muestrasSilencio.reduce((a, b) => a + b, 0);
+      let promedio = suma / muestrasSilencio.length;
+      let margen = 0.003;
+      umbralVolumen = promedio + margen;
+
+      // Mensaje intermedio e ir a etapa 1
+      etapaCalibracion = 1;
+      if (mensaje) {
+        mensaje.innerHTML = `<b>¡Listo!</b> Umbral de silencio calibrado: <b>${umbralVolumen.toFixed(5)}</b><br><br>
+        Ahora vamos a calibrar los aplausos.<br>
+        Cuando estés listo, apretá <b>Siguiente</b> y aplaudí <b>3 veces</b> en 5 segundos.<br><br>
+        <button id="btn-calibrar-siguiente" style="font-size:1.1em; padding:8px 24px;">Siguiente</button>`;
+      }
+      setTimeout(() => {
+        const btnSiguiente = document.getElementById('btn-calibrar-siguiente');
+        if (btnSiguiente) {
+          btnSiguiente.onclick = () => {
+            etapaCalibracion = 2;
+            muestrasAplausos = [];
+            aplausosDetectados = [];
+            tiempoInicioAplausos = millis();
+            calibracionEnProgreso = true;
+          };
+        }
+      }, 100);
+    }
+    return;
+  }
+
+  // --- ETAPA 2: DETECCIÓN DE APLAUSOS ---
+  if (calibrando && calibracionEnProgreso && etapaCalibracion === 2) {
+    let ahora = millis();
+    let nivel = mic.getLevel();
+    let energiaAltos = fft.getEnergy("treble");
+    muestrasAplausos.push({nivel, energiaAltos, tiempo: ahora});
+
+    // Mostramos en consola para ajustar si hace falta
+    console.log('Aplauso: nivel', nivel, 'agudos', energiaAltos);
+
+    // Detección de picos de aplauso (solo volumen, para no perder ninguno)
+    if (
+      nivel > umbralVolumen + 0.03 && // margen menor para facilitar detección
+      (aplausosDetectados.length === 0 || ahora - aplausosDetectados[aplausosDetectados.length-1].tiempo > 200)
+    ) {
+      aplausosDetectados.push({nivel, energiaAltos, tiempo: ahora});
+    }
+
+    let segundosRestantes = Math.ceil((duracionAplausos - (ahora - tiempoInicioAplausos)) / 1000);
+    const mensaje = document.getElementById('calibracion-mensaje');
+    if (mensaje) {
+      mensaje.innerHTML =
+        `<div>Aplaudí <b>3 veces</b> en <b>${segundosRestantes}</b> segundos...</div>
+         <div style="margin-top:12px; font-size:1.2em;">
+           Nivel actual: <b>${nivel.toFixed(5)}</b><br>
+           Agudos: <b>${energiaAltos.toFixed(2)}</b><br>
+           Aplausos detectados: <b>${aplausosDetectados.length}</b>
+         </div>`;
+    }
+
+    if (
+      ahora - tiempoInicioAplausos >= duracionAplausos ||
+      aplausosDetectados.length >= cantidadAplausosNecesarios
+    ) {
+      calibracionEnProgreso = false;
+      // Tomar los 3 picos más altos
+      let niveles = aplausosDetectados.map(a => a.nivel).sort((a, b) => b - a).slice(0, 3);
+      let agudos = aplausosDetectados.map(a => a.energiaAltos).sort((a, b) => b - a).slice(0, 3);
+      let promedioAplausos = niveles.reduce((a, b) => a + b, 0) / niveles.length;
+      let promedioAgudos = agudos.reduce((a, b) => a + b, 0) / agudos.length;
+      let margenAplauso = 0.01;
+      let margenAgudos = 5;
+      umbralAplauso = promedioAplausos - margenAplauso;
+      umbralEnergiaAltos = promedioAgudos - margenAgudos;
+
+      // Mensaje intermedio e ir a etapa 3 (instrucción grito)
+      etapaCalibracion = 3;
+      if (mensaje) {
+        mensaje.innerHTML =
+          `<b>¡Listo!</b> Umbral de aplauso calibrado: <b>${umbralAplauso.toFixed(5)}</b><br>
+           Umbral de agudos calibrado: <b>${umbralEnergiaAltos.toFixed(2)}</b><br><br>
+           Ahora vamos a calibrar el volumen máximo.<br>
+           Cuando estés listo, apretá <b>Siguiente</b> y gritá fuerte durante <b>3 segundos</b>.<br><br>
+           <button id="btn-calibrar-grito" style="font-size:1.1em; padding:8px 24px;">Siguiente</button>`;
+      }
+      setTimeout(() => {
+        const btnGrito = document.getElementById('btn-calibrar-grito');
+        if (btnGrito) {
+          btnGrito.onclick = () => {
+            etapaCalibracion = 4;
+            muestrasGrito = [];
+            tiempoInicioGrito = millis();
+            calibracionEnProgreso = true;
+          };
+        }
+      }, 100);
+    }
+    return;
+  }
+
+  // --- ETAPA 4: GRITO ---
+  if (calibrando && calibracionEnProgreso && etapaCalibracion === 4) {
+    let ahora = millis();
+    let nivel = mic.getLevel();
+    muestrasGrito.push(nivel);
+
+    let segundosRestantes = Math.ceil((duracionGrito - (ahora - tiempoInicioGrito)) / 1000);
+    const mensaje = document.getElementById('calibracion-mensaje');
+    if (mensaje) {
+      mensaje.innerHTML =
+        `<div>¡Gritá fuerte durante <b>${segundosRestantes}</b> segundos!</div>
+         <div style="margin-top:12px; font-size:1.2em;">
+           Nivel actual: <b>${nivel.toFixed(5)}</b>
+         </div>`;
+    }
+
+    if (ahora - tiempoInicioGrito >= duracionGrito) {
+      calibracionEnProgreso = false;
+      // Tomar el máximo nivel registrado
+      volumenMaximo = Math.max(...muestrasGrito);
+
+      // Mensaje final
+      etapaCalibracion = 5;
+      if (mensaje) {
+        mensaje.innerHTML =
+          `<b>¡Listo!</b> Volumen máximo calibrado: <b>${volumenMaximo.toFixed(5)}</b><br>
+     ¡Calibración completa!<br><br>
+     <button id="btn-calibrar-finalizar" style="font-size:1.1em; padding:8px 24px;">Finalizar</button>`;
+      }
+      setTimeout(() => {
+        const btnFinalizar = document.getElementById('btn-calibrar-finalizar');
+        if (btnFinalizar) {
+          btnFinalizar.style.display = "";
+          btnFinalizar.onclick = () => {
+            calibrando = false;
+            pausado = false;
+            modal.style.display = "none";
+            mostrarCartelInicio = true;
+            resetObra();
+          };
+        }
+      }, 100);
+    }
+    return;
+  }
+
+  // --- ETAPAS INTERMEDIAS: solo mostrar el pop-up, sin tomar muestras ---
+  if (calibrando) return;
+
+  if (mostrarCartelInicio) {
     fill(30);
     textAlign(CENTER, CENTER);
     textSize(32);
-    text("click para comenzar", width/2, height/2 - 20);
-
+    if (enCalibracion) {
+      background(20);
+      fill(200);
+      text("calibrando...", width/2, height/2 - 20);
+    } else {
+      text("click para comenzar", width/2, height/2 - 20);
+    }
     // Logo de reproducir (triángulo)
     fill(30);
     noStroke();
@@ -142,7 +333,7 @@ function draw() {
       x - size/2, y + size/2,
       x + size/2, y
     );
-    return; // No dibujar la obra hasta que se haga click
+    return;
   }
 
   if (pausado) return;
@@ -393,7 +584,22 @@ function keyPressed() {
   if (['1', '2', '3', '4'].includes(key)) {
     cambiarPaleta(int(key) - 1);
   }
-  
+
+  // Toggle menú y medidor con "M"
+  if (key === 'm' || key === 'M') {
+    const infoControles = document.getElementById('info-controles');
+    const infoTP = document.getElementById('info-tp');
+    const micMeter = document.getElementById('mic-meter');
+    if (infoControles) infoControles.style.display = (infoControles.style.display === "none" ? "" : "none");
+    if (infoTP) infoTP.style.display = (infoTP.style.display === "none" ? "" : "none");
+    if (micMeter) micMeter.style.display = (micMeter.style.display === "none" ? "" : "none");
+  }
+
+  // Toggle fullscreen con "F"
+  if (key === 'f' || key === 'F') {
+    let fs = fullscreen();
+    fullscreen(!fs);
+  }
 }
 
 // --- Reinicia la obra con nuevos parámetros aleatorios ---
@@ -420,55 +626,39 @@ window.addEventListener('DOMContentLoaded', () => {
       saveCanvas('IA2_CARRER_SCARAMUZZA_SILVA', 'jpg');
     });
   }
-  const slider = document.getElementById('umbral-slider');
-  const valueLabel = document.getElementById('umbral-value');
-  if (slider && valueLabel) {
-    slider.addEventListener('input', () => {
-      umbralVolumen = parseFloat(slider.value) * 0.0003; // Antes 0.0008, ahora más sensible
-      valueLabel.textContent = slider.value;
-    });
-    slider.value = 2;
-    valueLabel.textContent = slider.value;
-    umbralVolumen = parseFloat(slider.value) * 0.0003; // Ajuste inicial más sensible
-  }
+  // Botón de calibración
+  const btnCalibrar = document.getElementById('btn-calibrar');
+  const modal = document.getElementById('calibracion-modal');
+  const btnComenzar = document.getElementById('btn-calibrar-comenzar');
+  const btnFinalizar = document.getElementById('btn-calibrar-finalizar');
+  const mensaje = document.getElementById('calibracion-mensaje');
 
-  // NUEVO: sliders de sensibilidad min y max
-  const minSlider = document.getElementById('umbral-min-slider');
-  const maxSlider = document.getElementById('umbral-max-slider');
-  const minValue = document.getElementById('umbral-min-value');
-  const maxValue = document.getElementById('umbral-max-value');
+  if (btnCalibrar && modal && btnComenzar && btnFinalizar && mensaje) {
+    btnCalibrar.addEventListener('click', () => {
+      calibrando = true;
+      pausado = true;
+      modal.style.display = "flex";
+      mensaje.textContent = "¿Listo para calibrar el micrófono?";
+      btnComenzar.style.display = "";
+      btnFinalizar.style.display = "none";
+      calibracionEnProgreso = false;
+    });
 
-  if (minSlider && minValue && maxSlider && maxValue) {
-    // Los sliders se mueven normal, pero los valores están invertidos
-    minSlider.addEventListener('input', () => {
-      const min = parseFloat(minSlider.min);
-      const max = parseFloat(minSlider.max);
-      // Invertir el valor mostrado y usado
-      umbralVolumen = max - (parseFloat(minSlider.value) - min);
-      minValue.textContent = umbralVolumen.toFixed(3);
-      if (umbralVolumen >= volumenMaximo) {
-        volumenMaximo = umbralVolumen + 0.001;
-        maxSlider.value = (maxSlider.max - (volumenMaximo - parseFloat(maxSlider.min))).toFixed(3);
-        maxValue.textContent = volumenMaximo.toFixed(3);
+    btnComenzar.addEventListener('click', () => {
+      // ACTIVAR AUDIO CONTEXT Y MICRÓFONO SI NO ESTÁN ACTIVOS
+      if (getAudioContext().state !== 'running') {
+        userStartAudio();
+        getAudioContext().resume();
+        if (mic) mic.start();
       }
+      mensaje.textContent = "Por favor, hacé silencio durante 5 segundos...";
+      btnComenzar.style.display = "none";
+      btnFinalizar.style.display = "none";
+      muestrasSilencio = [];
+      calibracionEnProgreso = true;
+      tiempoInicioCalibracion = millis();
     });
-    maxSlider.addEventListener('input', () => {
-      const min = parseFloat(maxSlider.min);
-      const max = parseFloat(maxSlider.max);
-      // Invertir el valor mostrado y usado
-      volumenMaximo = max - (parseFloat(maxSlider.value) - min);
-      maxValue.textContent = volumenMaximo.toFixed(3);
-      if (volumenMaximo <= umbralVolumen) {
-        umbralVolumen = volumenMaximo - 0.001;
-        minSlider.value = (minSlider.max - (umbralVolumen - parseFloat(minSlider.min))).toFixed(3);
-        minValue.textContent = umbralVolumen.toFixed(3);
-      }
-    });
-    // Inicializa valores invertidos
-    minSlider.value = (minSlider.max - (umbralVolumen - parseFloat(minSlider.min))).toFixed(3);
-    minValue.textContent = umbralVolumen.toFixed(3);
-    maxSlider.value = (maxSlider.max - (volumenMaximo - parseFloat(maxSlider.min))).toFixed(3);
-    maxValue.textContent = volumenMaximo.toFixed(3);
+
   }
 });
 
